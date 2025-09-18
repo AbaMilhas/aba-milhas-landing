@@ -16,7 +16,9 @@ export async function POST(req: Request) {
           messaging_product: "whatsapp",
           to: process.env.WA_TO,
           type: "text",
-          text: { body: body || "🚀 Teste da Aba Milhas via WhatsApp Cloud API" },
+          text: {
+            body: body || "🚀 Teste da Aba Milhas via WhatsApp Cloud API",
+          },
         }),
       }
     );
