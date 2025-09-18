@@ -1,13 +1,16 @@
+import cias from "../../../data/cias.json";
+
+type Body = {
+  milhas: number | string;
+  cia: string;
+  email: string;
+  whatsapp: string;
+  consent: boolean;
+};
+
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as {
-      milhas: number | string;
-      cia: "LATAM" | "Smiles" | "Azul" | "TAP" | (string & {});
-      email: string;
-      whatsapp: string;
-      consent: boolean;
-    };
-
+    const body = (await req.json()) as Body;
     const { milhas, cia, email, whatsapp, consent } = body;
 
     if (!consent) return Response.json({ error: "Consentimento LGPD obrigatório" }, { status: 400 });
@@ -15,10 +18,11 @@ export async function POST(req: Request) {
       return Response.json({ error: "Campos obrigatórios ausentes" }, { status: 400 });
     }
 
-    const CPM = { LATAM: 25, Smiles: 21, Azul: 20, TAP: 18 } as const;
-    if (!(cia in CPM)) return Response.json({ error: "Companhia inválida" }, { status: 400 });
+    // Lê o CPM do JSON
+    const CPMs = cias as Record<string, number>;
+    if (!(cia in CPMs)) return Response.json({ error: "Companhia inválida" }, { status: 400 });
 
-    const valor = ((Number(milhas) / 1000) * CPM[cia as keyof typeof CPM]).toFixed(2);
+    const valor = ((Number(milhas) / 1000) * CPMs[cia]).toFixed(2);
     const to = String(whatsapp).replace(/\D/g, "");
 
     // ----- WhatsApp Cloud API (opcional) -----
@@ -46,12 +50,12 @@ export async function POST(req: Request) {
                   { type: "text", text: email.split("@")[0] || "Cliente" },
                   { type: "text", text: String(milhas) },
                   { type: "text", text: cia },
-                  { type: "text", text: valor },
-                ],
-              },
-            ],
-          },
-        }),
+                  { type: "text", text: valor }
+                ]
+              }
+            ]
+          }
+        })
       });
 
       if (!resp.ok) {

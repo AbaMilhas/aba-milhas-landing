@@ -2,10 +2,13 @@
   "LATAM": 25,
   "Smiles": 15.5,
   "Azul": 13,
-  "TAP": 40,
+  "TAP": 35,
   "Iberia": 45,
   "American": 70,
   "Qatar": 55,
   "Livelo": 25,
-  "Esfera": 25
+  "Esfera": 25,
+  "Itau": 35,
+  "Caixa": 35,
+  "C6 Bank": 35
 }
