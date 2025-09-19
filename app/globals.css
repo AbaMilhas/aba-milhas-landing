@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Paleta Aba — troque os hex pelos oficiais quando quiser */
+:root{
+  --brand-50:  #f5fbff;
+  --brand-100: #e6f5ff;
+  --brand-200: #cceaff;
+  --brand-300: #99d6ff;
+  --brand-400: #4db8ff;
+  --brand-500: #0095ff;
+  --brand-600: #0077cc; /* usada no botão */
+  --brand-700: #005da3;
+  --brand-800: #004b82;
+  --brand-900: #033a63;
+
+  --ink:        #0f172a;
+  --muted-ink:  #64748b;
+  --surface:    #ffffff;
+}
