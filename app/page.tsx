@@ -19,23 +19,28 @@ export default function Page() {
 
   // carrega as cias do seu endpoint /api/cias
   useEffect(() => {
-    (async () => {
-      try {
-        const r = await fetch("/api/cias", { cache: "no-store" });
-        if (r.ok) {
-          const data = (await r.json()) as CiaMap;
-          setCias(data);
-          // define uma cia padrão
-          const first = Object.keys(data)[0];
-          if (first) setCia(first);
-        } else {
-          setCias(null);
-        }
-      } catch {
+  (async () => {
+    try {
+      const r = await fetch("/api/cias", { cache: "no-store" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const raw = await r.json();
+
+      // aceita {cias:{...}} ou {...}
+      const data: CiaMap = raw?.cias && typeof raw.cias === "object" ? raw.cias : raw;
+
+      if (data && typeof data === "object" && Object.keys(data).length > 0) {
+        setCias(data);
+        const first = Object.keys(data)[0];
+        if (first) setCia(first);
+      } else {
         setCias(null);
       }
-    })();
-  }, []);
+    } catch {
+      setCias(null);
+    }
+  })();
+}, []);
+
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
