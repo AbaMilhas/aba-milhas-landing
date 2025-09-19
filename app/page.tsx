@@ -92,33 +92,21 @@ export default function Page() {
 
   return (
     <main className="min-h-dvh bg-neutral-50">
-      <header className="bg-white border-b">
-        <div className="mx-auto max-w-5xl px-6 py-4 flex items-center gap-3">
-          {/* CORREÇÃO AQUI: usa /logo.png */}
-          <img src="/logo.png" alt="Aba Milhas" className="h-12 w-auto" />
-          <div className="text-neutral-700">
-            <div className="font-semibold">Aba Milhas</div>
-            <div className="text-sm">Compra e venda de milhas com segurança</div>
-          </div>
-        </div>
-      </header>
-
       <section className="mx-auto max-w-5xl px-6 py-10 grid md:grid-cols-2 gap-8">
-       <div className="space-y-4">
-  <h1 className="text-3xl font-bold text-[#004c56]">
-    Receba a cotação das suas milhas pelo WhatsApp 🚀
-  </h1>
-  <p className="text-neutral-700">
-    Preencha seus dados e receba no seu WhatsApp a cotação estimada das suas milhas. 
-    Caso tenha interesse, continue a negociação com nosso time de forma simples e rápida.
-  </p>
-  <ul className="text-neutral-700 list-disc pl-5 space-y-1">
-    <li>🤝 Suporte humanizado em todas as etapas</li>
-    <li>💸 Pagamento seguro entre 25h e até 48h após a emissão</li>
-    <li>✨ Sem compromisso — você decide se quer negociar</li>
-  </ul>
-</div>
-
+        <div className="space-y-4">
+          <h1 className="text-3xl font-bold text-[#004c56]">
+            Receba a cotação das suas milhas pelo WhatsApp 🚀
+          </h1>
+          <p className="text-neutral-700">
+            Preencha seus dados e receba no seu WhatsApp a cotação estimada das suas milhas.
+            Caso tenha interesse, continue a negociação com nosso time de forma simples e rápida.
+          </p>
+          <ul className="text-neutral-700 list-disc pl-5 space-y-1">
+            <li>🤝 Suporte humanizado em todas as etapas</li>
+            <li>💸 Pagamento seguro entre 25h e até 48h após a emissão</li>
+            <li>✨ Sem compromisso — você decide se quer negociar</li>
+          </ul>
+        </div>
 
         <form onSubmit={onSubmit} className="bg-white rounded-2xl shadow p-6 space-y-4">
           {/* Cia aérea */}
@@ -132,7 +120,9 @@ export default function Page() {
             >
               {!Object.keys(cias).length && <option value="">Carregando...</option>}
               {Object.keys(cias).map((k) => (
-                <option key={k} value={k}>{k}</option>
+                <option key={k} value={k}>
+                  {k}
+                </option>
               ))}
             </select>
           </div>
