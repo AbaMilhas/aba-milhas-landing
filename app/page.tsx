@@ -55,12 +55,11 @@ export default function Page() {
       return setMsg("WhatsApp deve ser DDD+Número (10 ou 11 dígitos).");
     if (!email.includes("@")) return setMsg("Informe um e-mail válido.");
 
-    // BR fixo (adicione 55 automaticamente)
+    // BR fixo (adiciona +55 automaticamente)
     const to = `55${whatsDigits}`;
 
     // Valor NÃO aparece na página — apenas na mensagem enviada
-    const texto =
-`✈️ *Aba Milhas* — sua cotação chegou!
+    const texto = `✈️ *Aba Milhas* — sua cotação chegou!
 • Companhia: ${cia}
 • Pontos: ${pontosNum.toLocaleString("pt-BR")}
 • E-mail: ${email}
@@ -95,7 +94,8 @@ export default function Page() {
     <main className="min-h-dvh bg-neutral-50">
       <header className="bg-white border-b">
         <div className="mx-auto max-w-5xl px-6 py-4 flex items-center gap-3">
-          <img src="/logo-aba.png" alt="Aba Milhas" className="h-12 w-auto" />
+          {/* CORREÇÃO AQUI: usa /logo.png */}
+          <img src="/logo.png" alt="Aba Milhas" className="h-12 w-auto" />
           <div className="text-neutral-700">
             <div className="font-semibold">Aba Milhas</div>
             <div className="text-sm">Compra e venda de milhas com segurança</div>
