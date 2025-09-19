@@ -1,7 +1,8 @@
-﻿import { NextResponse } from "next/server";
-import cias from "@/data/cias.json"; // importa o JSON como objeto
+import { NextResponse } from "next/server";
+// importa o JSON como objeto
+import cias from "@/data/cias.json";
 
 export async function GET() {
-  // devolve exatamente { "LATAM": 25, "Smiles": 15.5, ... }
+  // garante que sai como objeto simples
   return NextResponse.json(cias);
 }
