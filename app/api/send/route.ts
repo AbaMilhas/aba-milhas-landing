@@ -4,32 +4,27 @@ export async function POST(req: Request) {
   try {
     const { body } = await req.json().catch(() => ({ body: "" }));
 
-    const resp = await fetch(
-      https://graph.facebook.com/v20.0//messages,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": Bearer ,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to: process.env.WA_TO,
-          type: "text",
-          text: {
-            body: body || "🚀 Teste da Aba Milhas via WhatsApp Cloud API",
-          },
-        }),
-      }
-    );
+    const url = `https://graph.facebook.com/v20.0/${process.env.WA_PHONE_ID}/messages`;
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.WA_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: process.env.WA_TO,
+        type: "text",
+        text: { body: body || "🚀 Teste da Aba Milhas via WhatsApp Cloud API" },
+      }),
+    });
 
     const data = await resp.json();
     return NextResponse.json({ ok: resp.ok, status: resp.status, data });
-  } catch (err: unknown) {
-    return NextResponse.json(
-      { ok: false, error: (err as Error).message },
-      { status: 500 }
-    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
 
