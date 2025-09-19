@@ -23,10 +23,7 @@ export default function Page() {
     try {
       const r = await fetch("/api/cias", { cache: "no-store" });
       if (!r.ok) throw new Error("HTTP " + r.status);
-      const raw = await r.json();
-
-      // aceita {cias:{...}} ou {...}
-      const data: CiaMap = raw?.cias && typeof raw.cias === "object" ? raw.cias : raw;
+      const data = (await r.json()) as CiaMap;
 
       if (data && typeof data === "object" && Object.keys(data).length > 0) {
         setCias(data);
@@ -40,6 +37,7 @@ export default function Page() {
     }
   })();
 }, []);
+
 
 
   async function onSubmit(e: React.FormEvent) {
