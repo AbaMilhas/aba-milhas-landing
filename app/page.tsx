@@ -18,8 +18,7 @@ export default function Page() {
   const [cias, setCias] = useState<CiaMap>({});
   const [cia, setCia] = useState("");
   const [pontos, setPontos] = useState("");
-  const [cpf, setCpf] = useState("");
-  const [whats, setWhats] = useState("");
+  const [whatsLocal, setWhatsLocal] = useState(""); // DDD+Número (sem 55)
   const [email, setEmail] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -48,20 +47,21 @@ export default function Page() {
     e.preventDefault();
     setMsg(null);
 
-    const cpfDigits = onlyDigits(cpf);
-    const whatsDigits = onlyDigits(whats);
-
+    const whatsDigits = onlyDigits(whatsLocal); // DDD+Número
     if (!cia) return setMsg("Selecione a companhia aérea.");
-    if (!pontosNum || pontosNum < 1000) return setMsg("Informe a quantidade de pontos (mínimo 1.000).");
-    if (cpfDigits.length !== 11) return setMsg("CPF deve ter 11 dígitos.");
-    if (!/^\d{11,13}$/.test(whatsDigits)) return setMsg("WhatsApp deve ser DDI+DDD+Número (ex.: 5591999999999).");
+    if (!pontosNum || pontosNum < 1000)
+      return setMsg("Informe a quantidade de pontos (mínimo 1.000).");
+    if (!/^\d{10,11}$/.test(whatsDigits))
+      return setMsg("WhatsApp deve ser DDD+Número (10 ou 11 dígitos).");
     if (!email.includes("@")) return setMsg("Informe um e-mail válido.");
+
+    // Brasil fixo: prefixo 55 adicionado automaticamente
+    const to = `55${whatsDigits}`;
 
     const texto =
 `✈️ *Aba Milhas* — sua cotação chegou!
 • Companhia: ${cia}
 • Pontos: ${pontosNum.toLocaleString("pt-BR")}
-• CPF: ${cpfDigits}
 • E-mail: ${email}
 • Valor estimado: ${brl(valor)} (CPM R$ ${cpm})
 
@@ -72,15 +72,14 @@ export default function Page() {
       const r = await fetch("/api/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: whatsDigits, body: texto })
+        body: JSON.stringify({ to, body: texto }),
       });
       const data = await r.json().catch(() => ({}));
       if (r.ok && data?.ok !== false) {
         setMsg("✅ Cotação enviada no seu WhatsApp!");
         // limpa dados sensíveis
-        setCpf("");
         setEmail("");
-        // mantém cia/pontos para facilitar novo envio
+        setWhatsLocal("");
       } else {
         setMsg("❌ Não foi possível enviar no WhatsApp. Verifique o token na Vercel.");
       }
@@ -109,7 +108,7 @@ export default function Page() {
             Receba a cotação das suas milhas por WhatsApp
           </h1>
           <p className="text-neutral-700">
-            Preencha os dados abaixo. Calculamos o valor e enviamos no seu WhatsApp com um link para continuar.
+            Preencha os dados. Calculamos o valor e enviamos no seu WhatsApp com um link para continuar.
           </p>
           <ul className="text-neutral-700 list-disc pl-5 space-y-1">
             <li>Principais cias aéreas</li>
@@ -119,6 +118,7 @@ export default function Page() {
         </div>
 
         <form onSubmit={onSubmit} className="bg-white rounded-2xl shadow p-6 space-y-4">
+          {/* Cia aérea */}
           <div>
             <label className="block text-sm font-medium text-neutral-700">Companhia aérea</label>
             <select
@@ -134,6 +134,7 @@ export default function Page() {
             </select>
           </div>
 
+          {/* Pontos */}
           <div>
             <label className="block text-sm font-medium text-neutral-700">Quantidade de pontos</label>
             <input
@@ -147,30 +148,28 @@ export default function Page() {
             <p className="text-xs text-neutral-500 mt-1">Mínimo recomendado: 1.000 pontos.</p>
           </div>
 
+          {/* WhatsApp (Brasil fixo) */}
           <div>
-            <label className="block text-sm font-medium text-neutral-700">CPF</label>
-            <input
-              inputMode="numeric"
-              value={cpf}
-              onChange={(e) => setCpf(onlyDigits(e.target.value))}
-              placeholder="Somente números"
-              className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
-              required
-            />
+            <label className="block text-sm font-medium text-neutral-700">WhatsApp (Brasil)</label>
+            <div className="mt-1 flex">
+              <span className="inline-flex items-center rounded-l-xl border border-neutral-300 bg-neutral-50 px-3 text-neutral-700">
+                +55
+              </span>
+              <input
+                inputMode="numeric"
+                value={whatsLocal}
+                onChange={(e) => setWhatsLocal(onlyDigits(e.target.value))}
+                placeholder="DDD+Número (ex.: 11999999999)"
+                className="w-full rounded-r-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
+                required
+              />
+            </div>
+            <p className="text-xs text-neutral-500 mt-1">
+              Digite apenas DDD+Número (10 ou 11 dígitos). O +55 já está fixo.
+            </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-neutral-700">WhatsApp (DDI+DDD+Número)</label>
-            <input
-              inputMode="numeric"
-              value={whats}
-              onChange={(e) => setWhats(onlyDigits(e.target.value))}
-              placeholder="Ex.: 5591999999999"
-              className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
-              required
-            />
-          </div>
-
+          {/* E-mail */}
           <div>
             <label className="block text-sm font-medium text-neutral-700">E-mail</label>
             <input
@@ -183,11 +182,13 @@ export default function Page() {
             />
           </div>
 
+          {/* Resumo */}
           <div className="rounded-xl bg-neutral-50 p-3 text-sm text-neutral-700">
             <div>CPM da {cia || "cia"}: <b>{cpm ? brl(cpm) : "—"}</b> por 1.000 pts</div>
             <div>Valor estimado: <b>{pontosNum && cpm ? brl(valor) : "—"}</b></div>
           </div>
 
+          {/* Botão */}
           <button
             type="submit"
             disabled={enviando}
