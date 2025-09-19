@@ -55,7 +55,6 @@ export default function Page() {
       return setMsg("WhatsApp deve ser DDD+Número (10 ou 11 dígitos).");
     if (!email.includes("@")) return setMsg("Informe um e-mail válido.");
 
-    // Brasil fixo: prefixo 55 adicionado automaticamente
     const to = `55${whatsDigits}`;
 
     const texto =
@@ -77,9 +76,9 @@ export default function Page() {
       const data = await r.json().catch(() => ({}));
       if (r.ok && data?.ok !== false) {
         setMsg("✅ Cotação enviada no seu WhatsApp!");
-        // limpa dados sensíveis
         setEmail("");
         setWhatsLocal("");
+        setPontos("");
       } else {
         setMsg("❌ Não foi possível enviar no WhatsApp. Verifique o token na Vercel.");
       }
@@ -96,123 +95,5 @@ export default function Page() {
         <div className="mx-auto max-w-5xl px-6 py-4 flex items-center gap-3">
           <img src="/logo-aba.png" alt="Aba Milhas" className="h-12 w-auto" />
           <div className="text-neutral-700">
-            <div className="font-semibold">Aba Milhas</div>
-            <div className="text-sm">Compra e venda de milhas com segurança</div>
-          </div>
-        </div>
-      </header>
-
-      <section className="mx-auto max-w-5xl px-6 py-10 grid md:grid-cols-2 gap-8">
-        <div className="space-y-4">
-          <h1 className="text-3xl font-bold text-[#004c56]">
-            Receba a cotação das suas milhas por WhatsApp
-          </h1>
-          <p className="text-neutral-700">
-            Preencha os dados. Calculamos o valor e enviamos no seu WhatsApp com um link para continuar.
-          </p>
-          <ul className="text-neutral-700 list-disc pl-5 space-y-1">
-            <li>Principais cias aéreas</li>
-            <li>Pagamento rápido e seguro</li>
-            <li>Sem compromisso</li>
-          </ul>
-        </div>
-
-        <form onSubmit={onSubmit} className="bg-white rounded-2xl shadow p-6 space-y-4">
-          {/* Cia aérea */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700">Companhia aérea</label>
-            <select
-              value={cia}
-              onChange={(e) => setCia(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
-              required
-            >
-              {!Object.keys(cias).length && <option value="">Carregando...</option>}
-              {Object.keys(cias).map((k) => (
-                <option key={k} value={k}>{k}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Pontos */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700">Quantidade de pontos</label>
-            <input
-              inputMode="numeric"
-              value={pontos}
-              onChange={(e) => setPontos(onlyDigits(e.target.value))}
-              placeholder="Ex.: 100000"
-              className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
-              required
-            />
-            <p className="text-xs text-neutral-500 mt-1">Mínimo recomendado: 1.000 pontos.</p>
-          </div>
-
-          {/* WhatsApp (Brasil fixo) */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700">WhatsApp (Brasil)</label>
-            <div className="mt-1 flex">
-              <span className="inline-flex items-center rounded-l-xl border border-neutral-300 bg-neutral-50 px-3 text-neutral-700">
-                +55
-              </span>
-              <input
-                inputMode="numeric"
-                value={whatsLocal}
-                onChange={(e) => setWhatsLocal(onlyDigits(e.target.value))}
-                placeholder="DDD+Número (ex.: 11999999999)"
-                className="w-full rounded-r-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
-                required
-              />
-            </div>
-            <p className="text-xs text-neutral-500 mt-1">
-              Digite apenas DDD+Número (10 ou 11 dígitos). O +55 já está fixo.
-            </p>
-          </div>
-
-          {/* E-mail */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700">E-mail</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="voce@exemplo.com"
-              className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
-              required
-            />
-          </div>
-
-          {/* Resumo */}
-          <div className="rounded-xl bg-neutral-50 p-3 text-sm text-neutral-700">
-            <div>CPM da {cia || "cia"}: <b>{cpm ? brl(cpm) : "—"}</b> por 1.000 pts</div>
-            <div>Valor estimado: <b>{pontosNum && cpm ? brl(valor) : "—"}</b></div>
-          </div>
-
-          {/* Botão */}
-          <button
-            type="submit"
-            disabled={enviando}
-            className="w-full rounded-xl bg-[#004c56] text-white font-semibold py-3 hover:bg-[#00636f] transition disabled:opacity-60"
-          >
-            {enviando ? "Enviando..." : "Receber cotação no WhatsApp"}
-          </button>
-
-          {msg && (
-            <div
-              className={`text-sm rounded-xl px-3 py-2 ${
-                msg.startsWith("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-              }`}
-            >
-              {msg}
-            </div>
-          )}
-        </form>
-      </section>
-
-      <footer className="py-8 text-center text-xs text-neutral-500">
-        © {new Date().getFullYear()} Aba Milhas. Todos os direitos reservados.
-      </footer>
-    </main>
-  );
-}
+            <div className="font-semibold">Aba Milhas</
 
