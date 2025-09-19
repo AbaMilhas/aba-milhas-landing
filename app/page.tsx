@@ -1,32 +1,26 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
-// Aceita vários formatos vindos do /api/cias
-type CiasApi =
-  | string[]
-  | { cias: string[] }
-  | Record<string, number>; // ex: { LATAM: 25, Smiles: 15.5 }
+type CiaMap = Record<string, number>;
 
-function normalizaCias(input: CiasApi): string[] {
-  // 1) { cias: [...] }
-  if (input && typeof input === "object" && "cias" in input) {
-    const arr = (input as { cias: unknown }).cias;
-    if (Array.isArray(arr)) return arr.map(String);
-  }
-  // 2) array simples [...]
-  if (Array.isArray(input)) return input.map(String);
-  // 3) mapa { LATAM: 25, ... } -> pega as chaves
-  if (input && typeof input === "object") return Object.keys(input as object);
-  return [];
+const CONTINUE_URL =
+  process.env.NEXT_PUBLIC_CONTINUE_URL || "https://abamilhas.com.br/continuar";
+
+function onlyDigits(s: string) {
+  return s.replace(/[^\d]/g, "");
+}
+function brl(n: number) {
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 export default function Page() {
-  const [cias, setCias] = useState<string[]>([]);
+  const [cias, setCias] = useState<CiaMap>({});
   const [cia, setCia] = useState("");
-  const [milhas, setMilhas] = useState("");
+  const [pontos, setPontos] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [whats, setWhats] = useState("");
   const [email, setEmail] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -34,50 +28,63 @@ export default function Page() {
     (async () => {
       try {
         const r = await fetch("/api/cias", { cache: "no-store" });
-        const raw = (await r.json()) as CiasApi;
-        const lista = normalizaCias(raw);
-        setCias(lista);
-        if (lista[0]) setCia(lista[0]);
+        const data = (await r.json()) as CiaMap;
+        if (data && typeof data === "object") {
+          setCias(data);
+          const first = Object.keys(data)[0];
+          if (first) setCia(first);
+        }
       } catch {
-        setCias([]);
+        setCias({});
       }
     })();
   }, []);
+
+  const cpm = useMemo(() => (cia ? cias[cia] ?? 0 : 0), [cia, cias]);
+  const pontosNum = useMemo(() => Number(onlyDigits(pontos) || 0), [pontos]);
+  const valor = useMemo(() => (pontosNum / 1000) * (cpm || 0), [pontosNum, cpm]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
 
-    const milhasNum = Number(milhas.replace(/\D/g, ""));
-    if (!cia) return setMsg("Selecione a companhia.");
-    if (!milhasNum) return setMsg("Informe a quantidade de milhas.");
-    if (!/^\d{11,13}$/.test(whatsapp))
-      return setMsg("WhatsApp deve ser DDI+DDD+Número. Ex.: 5591999999999");
+    const cpfDigits = onlyDigits(cpf);
+    const whatsDigits = onlyDigits(whats);
 
-    const mensagem =
-      `✈️ *Aba Milhas* — nova cotação\n\n` +
-      `• Companhia: ${cia}\n` +
-      `• Milhas: ${milhasNum.toLocaleString("pt-BR")}\n` +
-      `• E-mail: ${email}\n` +
-      `• WhatsApp: ${whatsapp}`;
+    if (!cia) return setMsg("Selecione a companhia aérea.");
+    if (!pontosNum || pontosNum < 1000) return setMsg("Informe a quantidade de pontos (mínimo 1.000).");
+    if (cpfDigits.length !== 11) return setMsg("CPF deve ter 11 dígitos.");
+    if (!/^\d{11,13}$/.test(whatsDigits)) return setMsg("WhatsApp deve ser DDI+DDD+Número (ex.: 5591999999999).");
+    if (!email.includes("@")) return setMsg("Informe um e-mail válido.");
+
+    const texto =
+`✈️ *Aba Milhas* — sua cotação chegou!
+• Companhia: ${cia}
+• Pontos: ${pontosNum.toLocaleString("pt-BR")}
+• CPF: ${cpfDigits}
+• E-mail: ${email}
+• Valor estimado: ${brl(valor)} (CPM R$ ${cpm})
+
+👉 Para continuar a negociação, acesse: ${CONTINUE_URL}`;
 
     try {
       setEnviando(true);
       const r = await fetch("/api/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: mensagem }),
+        body: JSON.stringify({ to: whatsDigits, body: texto })
       });
       const data = await r.json().catch(() => ({}));
       if (r.ok && data?.ok !== false) {
-        setMsg("✅ Cotação enviada no WhatsApp!");
-        // mantém cia/milhas para facilitar outro envio
+        setMsg("✅ Cotação enviada no seu WhatsApp!");
+        // limpa dados sensíveis
+        setCpf("");
         setEmail("");
-        // setWhatsapp(""); // opcional
+        // mantém cia/pontos para facilitar novo envio
       } else {
-        setMsg("❌ Falha ao enviar. Verifique token/variáveis na Vercel.");
+        setMsg("❌ Não foi possível enviar no WhatsApp. Verifique o token na Vercel.");
       }
-    } catch (err) {
+    } catch {
       setMsg("❌ Erro de rede. Tente novamente.");
     } finally {
       setEnviando(false);
@@ -102,12 +109,12 @@ export default function Page() {
             Receba a cotação das suas milhas por WhatsApp
           </h1>
           <p className="text-neutral-700">
-            Preencha os dados e enviamos automaticamente sua cotação no WhatsApp.
+            Preencha os dados abaixo. Calculamos o valor e enviamos no seu WhatsApp com um link para continuar.
           </p>
           <ul className="text-neutral-700 list-disc pl-5 space-y-1">
-            <li>Atendemos principais cias aéreas</li>
+            <li>Principais cias aéreas</li>
             <li>Pagamento rápido e seguro</li>
-            <li>Sem compromisso — você decide se quer negociar</li>
+            <li>Sem compromisso</li>
           </ul>
         </div>
 
@@ -120,22 +127,45 @@ export default function Page() {
               className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
               required
             >
-              {!cias.length && <option value="">Carregando...</option>}
-              {cias.map((nome) => (
-                <option key={nome} value={nome}>
-                  {nome}
-                </option>
+              {!Object.keys(cias).length && <option value="">Carregando...</option>}
+              {Object.keys(cias).map((k) => (
+                <option key={k} value={k}>{k}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-neutral-700">Quantidade de milhas</label>
+            <label className="block text-sm font-medium text-neutral-700">Quantidade de pontos</label>
             <input
               inputMode="numeric"
-              value={milhas}
-              onChange={(e) => setMilhas(e.target.value.replace(/[^\d]/g, ""))}
+              value={pontos}
+              onChange={(e) => setPontos(onlyDigits(e.target.value))}
               placeholder="Ex.: 100000"
+              className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
+              required
+            />
+            <p className="text-xs text-neutral-500 mt-1">Mínimo recomendado: 1.000 pontos.</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-700">CPF</label>
+            <input
+              inputMode="numeric"
+              value={cpf}
+              onChange={(e) => setCpf(onlyDigits(e.target.value))}
+              placeholder="Somente números"
+              className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-700">WhatsApp (DDI+DDD+Número)</label>
+            <input
+              inputMode="numeric"
+              value={whats}
+              onChange={(e) => setWhats(onlyDigits(e.target.value))}
+              placeholder="Ex.: 5591999999999"
               className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
               required
             />
@@ -153,19 +183,9 @@ export default function Page() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-neutral-700">WhatsApp (DDI+DDD+Número)</label>
-            <input
-              inputMode="numeric"
-              value={whatsapp}
-              onChange={(e) => setWhatsapp(e.target.value.replace(/[^\d]/g, ""))}
-              placeholder="Ex.: 5591999999999"
-              className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
-              required
-            />
-            <p className="text-xs text-neutral-500 mt-1">
-              Ex.: Brasil → 55 + DDD + número.
-            </p>
+          <div className="rounded-xl bg-neutral-50 p-3 text-sm text-neutral-700">
+            <div>CPM da {cia || "cia"}: <b>{cpm ? brl(cpm) : "—"}</b> por 1.000 pts</div>
+            <div>Valor estimado: <b>{pontosNum && cpm ? brl(valor) : "—"}</b></div>
           </div>
 
           <button

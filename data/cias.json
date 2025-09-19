@@ -1,11 +1,14 @@
 ﻿{
-  "LATAM": 25,
+  "LATAM": 25.0,
   "Smiles": 15.5,
-  "Azul": 13,
-  "TAP": 14,
-  "Livelo": 25,
-  "Esfera (Santander)": 25,
-  "C6 Bank": 35,
-  "Itaú": 35,
-  "Caixa": 35
+  "Azul": 13.0,
+  "TAP": 35.0,
+  "Iberia": 50.0,
+  "American": 70.0,
+  "Qatar": 55.0,
+  "Livelo": 25.0,
+  "Esfera": 25.0,
+  "Itau": 35.0,
+  "Caixa": 35.0,
+  "C6 Bank": 35.0
 }
