@@ -1,202 +1,196 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
-export default function Home() {
+// Aceita vários formatos vindos do /api/cias
+type CiasApi =
+  | string[]
+  | { cias: string[] }
+  | Record<string, number>; // ex: { LATAM: 25, Smiles: 15.5 }
+
+function normalizaCias(input: CiasApi): string[] {
+  // 1) { cias: [...] }
+  if (input && typeof input === "object" && "cias" in input) {
+    const arr = (input as { cias: unknown }).cias;
+    if (Array.isArray(arr)) return arr.map(String);
+  }
+  // 2) array simples [...]
+  if (Array.isArray(input)) return input.map(String);
+  // 3) mapa { LATAM: 25, ... } -> pega as chaves
+  if (input && typeof input === "object") return Object.keys(input as object);
+  return [];
+}
+
+export default function Page() {
   const [cias, setCias] = useState<string[]>([]);
-  const [form, setForm] = useState({
-    cia: "",
-    milhas: "",
-    email: "",
-    whatsapp: "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [cia, setCia] = useState("");
+  const [milhas, setMilhas] = useState("");
+  const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
-  // Buscar as cias da API
   useEffect(() => {
-    fetch("/api/cias")
-      .then((res) => res.json())
-      .then((data) => setCias(data.cias || []))
-      .catch(() => setCias([]));
+    (async () => {
+      try {
+        const r = await fetch("/api/cias", { cache: "no-store" });
+        const raw = (await r.json()) as CiasApi;
+        const lista = normalizaCias(raw);
+        setCias(lista);
+        if (lista[0]) setCia(lista[0]);
+      } catch {
+        setCias([]);
+      }
+    })();
   }, []);
 
-  // Enviar formulário -> WhatsApp Cloud API
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setSuccess(false);
+    setMsg(null);
+
+    const milhasNum = Number(milhas.replace(/\D/g, ""));
+    if (!cia) return setMsg("Selecione a companhia.");
+    if (!milhasNum) return setMsg("Informe a quantidade de milhas.");
+    if (!/^\d{11,13}$/.test(whatsapp))
+      return setMsg("WhatsApp deve ser DDI+DDD+Número. Ex.: 5591999999999");
+
+    const mensagem =
+      `✈️ *Aba Milhas* — nova cotação\n\n` +
+      `• Companhia: ${cia}\n` +
+      `• Milhas: ${milhasNum.toLocaleString("pt-BR")}\n` +
+      `• E-mail: ${email}\n` +
+      `• WhatsApp: ${whatsapp}`;
 
     try {
-      const resp = await fetch("/api/send", {
+      setEnviando(true);
+      const r = await fetch("/api/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          body: `📩 Nova cotação:
-✈ Companhia: ${form.cia}
-💳 Milhas: ${form.milhas}
-📧 E-mail: ${form.email}
-📱 WhatsApp: ${form.whatsapp}`,
-        }),
+        body: JSON.stringify({ body: mensagem }),
       });
-
-      const data = await resp.json();
-      if (resp.ok) {
-        setSuccess(true);
-        setForm({ cia: "", milhas: "", email: "", whatsapp: "" });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok && data?.ok !== false) {
+        setMsg("✅ Cotação enviada no WhatsApp!");
+        // mantém cia/milhas para facilitar outro envio
+        setEmail("");
+        // setWhatsapp(""); // opcional
       } else {
-        alert("Erro ao enviar mensagem: " + JSON.stringify(data));
+        setMsg("❌ Falha ao enviar. Verifique token/variáveis na Vercel.");
       }
     } catch (err) {
-      alert("Erro inesperado: " + (err as Error).message);
+      setMsg("❌ Erro de rede. Tente novamente.");
+    } finally {
+      setEnviando(false);
     }
-
-    setLoading(false);
-  };
+  }
 
   return (
-    <main className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="flex items-center justify-between bg-[#eaf4f6] px-8 py-4 shadow">
-        <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="Aba Milhas" className="h-10" />
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Aba Milhas</h1>
-            <p className="text-sm text-gray-600">
-              Compra e venda de milhas com segurança
-            </p>
+    <main className="min-h-dvh bg-neutral-50">
+      <header className="bg-white border-b">
+        <div className="mx-auto max-w-5xl px-6 py-4 flex items-center gap-3">
+          <img src="/logo-aba.png" alt="Aba Milhas" className="h-12 w-auto" />
+          <div className="text-neutral-700">
+            <div className="font-semibold">Aba Milhas</div>
+            <div className="text-sm">Compra e venda de milhas com segurança</div>
           </div>
         </div>
-        <a
-          href="#form"
-          className="rounded-full bg-[#004c56] px-6 py-2 text-white shadow hover:bg-[#00636f]"
-        >
-          Fazer cotação
-        </a>
       </header>
 
-      {/* Conteúdo principal */}
-      <section className="mx-auto grid max-w-5xl grid-cols-1 gap-8 px-6 py-12 md:grid-cols-2">
-        <div>
-          <h2 className="mb-4 text-3xl font-bold text-[#004c56]">
+      <section className="mx-auto max-w-5xl px-6 py-10 grid md:grid-cols-2 gap-8">
+        <div className="space-y-4">
+          <h1 className="text-3xl font-bold text-[#004c56]">
             Receba a cotação das suas milhas por WhatsApp
-          </h2>
-          <p className="mb-6 text-gray-700">
-            Preencha os dados abaixo e enviaremos automaticamente o valor
-            estimado das suas milhas no seu WhatsApp.
+          </h1>
+          <p className="text-neutral-700">
+            Preencha os dados e enviamos automaticamente sua cotação no WhatsApp.
           </p>
-          <ul className="list-disc space-y-2 pl-5 text-gray-700">
+          <ul className="text-neutral-700 list-disc pl-5 space-y-1">
             <li>Atendemos principais cias aéreas</li>
             <li>Pagamento rápido e seguro</li>
             <li>Sem compromisso — você decide se quer negociar</li>
           </ul>
         </div>
 
-        {/* Formulário */}
-        <form
-          id="form"
-          onSubmit={handleSubmit}
-          className="space-y-4 rounded-lg border p-6 shadow"
-        >
-          {/* Companhia */}
+        <form onSubmit={onSubmit} className="bg-white rounded-2xl shadow p-6 space-y-4">
           <div>
-            <label
-              htmlFor="cia"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Companhia aérea
-            </label>
+            <label className="block text-sm font-medium text-neutral-700">Companhia aérea</label>
             <select
-              id="cia"
-              name="cia"
-              value={form.cia}
-              onChange={(e) => setForm({ ...form, cia: e.target.value })}
-              className="w-full rounded-md border border-gray-300 p-2"
+              value={cia}
+              onChange={(e) => setCia(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
               required
             >
-              <option value="">Selecione a companhia</option>
-              {cias.map((cia) => (
-                <option key={cia} value={cia}>
-                  {cia}
+              {!cias.length && <option value="">Carregando...</option>}
+              {cias.map((nome) => (
+                <option key={nome} value={nome}>
+                  {nome}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Milhas */}
           <div>
-            <label
-              htmlFor="milhas"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Quantidade de milhas
-            </label>
+            <label className="block text-sm font-medium text-neutral-700">Quantidade de milhas</label>
             <input
-              id="milhas"
-              type="number"
+              inputMode="numeric"
+              value={milhas}
+              onChange={(e) => setMilhas(e.target.value.replace(/[^\d]/g, ""))}
               placeholder="Ex.: 100000"
-              value={form.milhas}
-              onChange={(e) => setForm({ ...form, milhas: e.target.value })}
-              className="w-full rounded-md border border-gray-300 p-2"
+              className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
               required
             />
           </div>
 
-          {/* Email */}
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
-            >
-              E-mail
-            </label>
+            <label className="block text-sm font-medium text-neutral-700">E-mail</label>
             <input
-              id="email"
               type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="voce@exemplo.com"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full rounded-md border border-gray-300 p-2"
+              className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
               required
             />
           </div>
 
-          {/* WhatsApp */}
           <div>
-            <label
-              htmlFor="whatsapp"
-              className="block text-sm font-medium text-gray-700"
-            >
-              WhatsApp (DDI+DDD+Número)
-            </label>
+            <label className="block text-sm font-medium text-neutral-700">WhatsApp (DDI+DDD+Número)</label>
             <input
-              id="whatsapp"
-              type="tel"
+              inputMode="numeric"
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value.replace(/[^\d]/g, ""))}
               placeholder="Ex.: 5591999999999"
-              value={form.whatsapp}
-              onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
-              className="w-full rounded-md border border-gray-300 p-2"
+              className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
               required
             />
-            <p className="mt-1 text-xs text-gray-500">
-              Ex.: Brasil → 55 + DDD + número. Exemplo: 5591999999999
+            <p className="text-xs text-neutral-500 mt-1">
+              Ex.: Brasil → 55 + DDD + número.
             </p>
           </div>
 
-          {/* Botão */}
           <button
             type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-[#004c56] py-2 text-white hover:bg-[#00636f] disabled:opacity-50"
+            disabled={enviando}
+            className="w-full rounded-xl bg-[#004c56] text-white font-semibold py-3 hover:bg-[#00636f] transition disabled:opacity-60"
           >
-            {loading ? "Enviando..." : "Receber cotação no WhatsApp"}
+            {enviando ? "Enviando..." : "Receber cotação no WhatsApp"}
           </button>
 
-          {success && (
-            <p className="text-green-600">Mensagem enviada com sucesso ✅</p>
+          {msg && (
+            <div
+              className={`text-sm rounded-xl px-3 py-2 ${
+                msg.startsWith("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+              }`}
+            >
+              {msg}
+            </div>
           )}
         </form>
       </section>
+
+      <footer className="py-8 text-center text-xs text-neutral-500">
+        © {new Date().getFullYear()} Aba Milhas. Todos os direitos reservados.
+      </footer>
     </main>
   );
 }
