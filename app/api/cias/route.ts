@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-// importa o JSON como objeto
-import cias from "@/data/cias.json";
+// Caminho relativo saindo de app/api/cias/route.ts até data/cias.json
+import cias from "../../../data/cias.json";
 
 export async function GET() {
-  // garante que sai como objeto simples
   return NextResponse.json(cias);
 }
+
