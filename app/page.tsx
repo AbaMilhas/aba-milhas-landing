@@ -104,19 +104,21 @@ export default function Page() {
       </header>
 
       <section className="mx-auto max-w-5xl px-6 py-10 grid md:grid-cols-2 gap-8">
-        <div className="space-y-4">
-          <h1 className="text-3xl font-bold text-[#004c56]">
-            Receba a cotação das suas milhas por WhatsApp
-          </h1>
-          <p className="text-neutral-700">
-            Preencha os dados. Calculamos o valor e enviamos no seu WhatsApp com um link para continuar.
-          </p>
-          <ul className="text-neutral-700 list-disc pl-5 space-y-1">
-            <li>Principais cias aéreas</li>
-            <li>Pagamento rápido e seguro</li>
-            <li>Sem compromisso</li>
-          </ul>
-        </div>
+       <div className="space-y-4">
+  <h1 className="text-3xl font-bold text-[#004c56]">
+    Receba a cotação das suas milhas pelo WhatsApp 🚀
+  </h1>
+  <p className="text-neutral-700">
+    Preencha seus dados e receba no seu WhatsApp a cotação estimada das suas milhas. 
+    Caso tenha interesse, continue a negociação com nosso time de forma simples e rápida.
+  </p>
+  <ul className="text-neutral-700 list-disc pl-5 space-y-1">
+    <li>🤝 Suporte humanizado em todas as etapas</li>
+    <li>💸 Pagamento seguro entre 25h e até 48h após a emissão</li>
+    <li>✨ Sem compromisso — você decide se quer negociar</li>
+  </ul>
+</div>
+
 
         <form onSubmit={onSubmit} className="bg-white rounded-2xl shadow p-6 space-y-4">
           {/* Cia aérea */}
