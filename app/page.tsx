@@ -1,4 +1,3 @@
-@'
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -56,8 +55,10 @@ export default function Page() {
       return setMsg("WhatsApp deve ser DDD+Número (10 ou 11 dígitos).");
     if (!email.includes("@")) return setMsg("Informe um e-mail válido.");
 
+    // BR fixo (adicione 55 automaticamente)
     const to = `55${whatsDigits}`;
 
+    // Valor NÃO aparece na página — apenas na mensagem enviada
     const texto =
 `✈️ *Aba Milhas* — sua cotação chegou!
 • Companhia: ${cia}
@@ -209,4 +210,4 @@ export default function Page() {
     </main>
   );
 }
-'@ | Set-Content -Path app/page.tsx -Encoding UTF8
+
