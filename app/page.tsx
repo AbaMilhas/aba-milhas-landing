@@ -4,33 +4,33 @@ import React, { useEffect, useMemo, useState } from "react";
 
 type CiaMap = Record<string, number>;
 
-function onlyDigits(s: string) {
-  return s.replace(/[^\d]/g, "");
-}
-function brl(n: number) {
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
+const SELLER = process.env.NEXT_PUBLIC_WA_SELLER || ""; // ex.: 5551999999999
 
-const WA_SELLER = process.env.NEXT_PUBLIC_WA_SELLER || ""; // seu número de atendimento
+// utils
+const onlyDigits = (s: string) => s.replace(/[^\d]/g, "");
+const brl = (n: number) =>
+  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default function Page() {
+  // dados de cálculo
   const [cias, setCias] = useState<CiaMap>({});
   const [cia, setCia] = useState("");
   const [pontos, setPontos] = useState("");
-  const [nome, setNome] = useState("");
+  const [whatsLocal, setWhatsLocal] = useState(""); // DDD+Número sem +55
   const [email, setEmail] = useState("");
-  const [resultadoVisivel, setResultadoVisivel] = useState(false);
+
+  // UI
+  const [showQuote, setShowQuote] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
         const r = await fetch("/api/cias", { cache: "no-store" });
         const data = (await r.json()) as CiaMap;
-        if (data && typeof data === "object") {
-          setCias(data);
-          const first = Object.keys(data)[0];
-          if (first) setCia(first);
-        }
+        setCias(data);
+        const first = Object.keys(data)[0];
+        if (first) setCia(first);
       } catch {
         setCias({});
       }
@@ -41,179 +41,274 @@ export default function Page() {
   const pontosNum = useMemo(() => Number(onlyDigits(pontos) || 0), [pontos]);
   const valor = useMemo(() => (pontosNum / 1000) * (cpm || 0), [pontosNum, cpm]);
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!cia) return alert("Selecione a companhia aérea.");
-    if (!pontosNum || pontosNum < 1000)
-      return alert("Informe a quantidade de pontos (mínimo 1.000).");
+  // texto que vai para o WhatsApp do vendedor
+  const sellerMessage = useMemo(() => {
+    const lines = [
+      "✈️ *Aba Milhas* — Novo pedido de cotação",
+      `• Companhia: ${cia || "-"}`,
+      `• Pontos: ${pontosNum.toLocaleString("pt-BR") || "-"}`,
+      `• E-mail do cliente: ${email || "-"}`,
+      `• WhatsApp do cliente: +55 ${whatsLocal || "-"}`,
+      `• Valor estimado: ${brl(valor)} (CPM R$ ${cpm})`,
+      "",
+      "👉 Vamos continuar com a negociação?"
+    ];
+    return lines.join("\n");
+  }, [cia, pontosNum, email, whatsLocal, valor, cpm]);
 
-    setResultadoVisivel(true);
+  const waLink = useMemo(() => {
+    // conversa com o *seu número* (vendedor)
+    const base = `https://wa.me/${SELLER}?text=${encodeURIComponent(
+      sellerMessage
+    )}`;
+    return base;
+  }, [sellerMessage]);
+
+  function validate(): string | null {
+    if (!cia) return "Selecione a companhia aérea.";
+    if (!pontosNum || pontosNum < 1000)
+      return "Informe a quantidade de pontos (mínimo 1.000).";
+    const dddNum = onlyDigits(whatsLocal);
+    if (!/^\d{10,11}$/.test(dddNum))
+      return "WhatsApp deve ser DDD+Número (10 ou 11 dígitos).";
+    if (!email.includes("@")) return "Informe um e-mail válido.";
+    if (!SELLER) return "Número do vendedor não configurado na Vercel.";
+    return null;
   }
 
-  // Mensagem que vai pré-preenchida no WhatsApp (para o SEU número)
-  const mensagemWhats = useMemo(() => {
-    const linhas = [
-      `✈️ *Aba Milhas* — Nova cotação`,
-      nome ? `• Nome: ${nome}` : null,
-      `• Companhia: ${cia}`,
-      `• Pontos: ${pontosNum.toLocaleString("pt-BR")}`,
-      email ? `• E-mail: ${email}` : null,
-      `• Valor estimado: ${brl(valor)} (CPM R$ ${cpm})`,
-      ``,
-      `Tenho interesse em continuar a negociação 👇`,
-    ].filter(Boolean);
-    return linhas.join("\n");
-  }, [cia, pontosNum, valor, cpm, nome, email]);
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const err = validate();
+    setMsg(err);
+    if (!err) setShowQuote(true);
+  }
 
-  // Link wa.me para abrir conversa com a SUA empresa
-  const waLink = useMemo(() => {
-    const num = onlyDigits(WA_SELLER);
-    const texto = encodeURIComponent(mensagemWhats);
-    return num ? `https://wa.me/${num}?text=${texto}` : "#";
-  }, [mensagemWhats]);
+  function copyQuote() {
+    navigator.clipboard
+      .writeText(sellerMessage)
+      .then(() => setMsg("✅ Cotação copiada!"))
+      .catch(() => setMsg("❌ Não foi possível copiar."));
+  }
 
   return (
     <main className="min-h-dvh bg-neutral-50">
-      <section className="mx-auto max-w-5xl px-6 py-10 grid md:grid-cols-2 gap-8">
-        {/* Lado esquerdo: copy */}
-        <div className="space-y-4">
-          <h1 className="text-3xl font-bold text-[#004c56]">
-            Receba sua cotação em segundos 🚀
-          </h1>
-          <p className="text-neutral-700">
-            Preencha os dados, veja o valor estimado na hora e, se quiser,
-            continue a negociação no WhatsApp com nosso time.
-          </p>
-          <ul className="text-neutral-700 list-disc pl-5 space-y-1">
-            <li>🤝 Suporte humanizado em todas as etapas</li>
-            <li>💸 Pagamento seguro entre 25h e até 48h após a emissão</li>
-            <li>✨ Sem compromisso — você decide se quer negociar</li>
-          </ul>
+      {/* Cabeçalho simples */}
+      <header className="bg-white border-b">
+        <div className="mx-auto max-w-5xl px-6 py-4 flex items-center gap-3">
+          <img src="/logo.png" alt="Aba Milhas" className="h-10 w-auto" />
+          <div className="text-neutral-700">
+            <div className="font-semibold">Aba Milhas</div>
+            <div className="text-sm">Compra e venda de milhas com segurança</div>
+          </div>
         </div>
+      </header>
 
-        {/* Lado direito: formulário + resultado */}
-        <div className="bg-white rounded-2xl shadow p-6 space-y-4">
-          {!resultadoVisivel ? (
-            <form onSubmit={onSubmit} className="space-y-4">
-              {/* Nome (opcional) */}
-              <div>
-                <label className="block text-sm font-medium text-neutral-700">
-                  Nome (opcional)
-                </label>
-                <input
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  placeholder="Seu nome"
-                  className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
-                />
-              </div>
+      <section className="mx-auto max-w-5xl px-6 py-10 grid lg:grid-cols-2 gap-8">
+        {/* Texto de apoio */}
+        <div className="space-y-5">
+          <h1 className="text-3xl font-bold text-[#004c56]">
+            Receba sua cotação em segundos
+          </h1>
+          <p className="text-neutral-700 leading-relaxed">
+            Preencha os dados, veja o valor estimado agora mesmo e, se quiser,
+            continue a negociação pelo WhatsApp. Atendimento{" "}
+            <strong>humanizado</strong> e pagamento{" "}
+            <strong>rápido e seguro</strong> entre{" "}
+            <strong>25h e até 48h</strong> após a emissão.
+          </p>
 
-              {/* Cia aérea */}
-              <div>
-                <label className="block text-sm font-medium text-neutral-700">
-                  Companhia aérea
-                </label>
-                <select
-                  value={cia}
-                  onChange={(e) => setCia(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
-                  required
-                >
-                  {!Object.keys(cias).length && (
-                    <option value="">Carregando...</option>
-                  )}
-                  {Object.keys(cias).map((k) => (
-                    <option key={k} value={k}>
-                      {k}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          {/* Form */}
+          <form
+            onSubmit={onSubmit}
+            className="bg-white rounded-2xl shadow p-6 space-y-4"
+          >
+            {/* Companhia */}
+            <div>
+              <label className="block text-sm font-medium text-neutral-700">
+                Companhia aérea
+              </label>
+              <select
+                value={cia}
+                onChange={(e) => {
+                  setCia(e.target.value);
+                  setShowQuote(false);
+                  setMsg(null);
+                }}
+                className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
+                required
+              >
+                {!Object.keys(cias).length && (
+                  <option value="">Carregando...</option>
+                )}
+                {Object.keys(cias).map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              {/* Pontos */}
-              <div>
-                <label className="block text-sm font-medium text-neutral-700">
-                  Quantidade de pontos
-                </label>
+            {/* Pontos */}
+            <div>
+              <label className="block text-sm font-medium text-neutral-700">
+                Quantidade de pontos
+              </label>
+              <input
+                inputMode="numeric"
+                value={pontos}
+                onChange={(e) => {
+                  setPontos(onlyDigits(e.target.value));
+                  setShowQuote(false);
+                  setMsg(null);
+                }}
+                placeholder="Ex.: 100000"
+                className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
+                required
+              />
+              <p className="text-xs text-neutral-500 mt-1">
+                Mínimo recomendado: 1.000 pontos.
+              </p>
+            </div>
+
+            {/* WhatsApp (obrigatório) */}
+            <div>
+              <label className="block text-sm font-medium text-neutral-700">
+                WhatsApp do cliente (Brasil)
+              </label>
+              <div className="mt-1 flex">
+                <span className="inline-flex items-center rounded-l-xl border border-neutral-300 bg-neutral-50 px-3 text-neutral-700">
+                  +55
+                </span>
                 <input
                   inputMode="numeric"
-                  value={pontos}
-                  onChange={(e) => setPontos(onlyDigits(e.target.value))}
-                  placeholder="Ex.: 100000"
-                  className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
+                  value={whatsLocal}
+                  onChange={(e) => {
+                    setWhatsLocal(onlyDigits(e.target.value));
+                    setShowQuote(false);
+                    setMsg(null);
+                  }}
+                  placeholder="DDD+Número (ex.: 11999999999)"
+                  className="w-full rounded-r-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
                   required
                 />
-                <p className="text-xs text-neutral-500 mt-1">
-                  Mínimo recomendado: 1.000 pontos.
-                </p>
               </div>
-
-              {/* E-mail (opcional) */}
-              <div>
-                <label className="block text-sm font-medium text-neutral-700">
-                  E-mail (opcional)
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="voce@exemplo.com"
-                  className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
-                />
-              </div>
-
-              {/* Botão */}
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-[#004c56] text-white font-semibold py-3 hover:bg-[#00636f] transition"
-              >
-                Ver minha cotação
-              </button>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-                <div className="font-semibold text-green-800 mb-1">
-                  Cotação estimada
-                </div>
-                <div className="text-sm text-green-900 space-y-1">
-                  <div>Companhia: <strong>{cia}</strong></div>
-                  <div>Pontos: <strong>{pontosNum.toLocaleString("pt-BR")}</strong></div>
-                  <div>CPM: <strong>R$ {cpm}</strong></div>
-                  <div>Valor estimado: <strong>{brl(valor)}</strong></div>
-                </div>
-              </div>
-
-              <a
-                href={waLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`w-full inline-flex items-center justify-center rounded-xl bg-[#25D366] text-white font-semibold py-3 hover:brightness-95 transition ${
-                  WA_SELLER ? "" : "pointer-events-none opacity-60"
-                }`}
-                title={WA_SELLER ? "Abrir WhatsApp" : "Configure NEXT_PUBLIC_WA_SELLER"}
-              >
-                Continuar no WhatsApp
-              </a>
-
-              <button
-                onClick={() => setResultadoVisivel(false)}
-                className="w-full rounded-xl border border-neutral-300 py-3 font-semibold hover:bg-neutral-50 transition"
-              >
-                Refazer cotação
-              </button>
-
-              {/* Preview do texto enviado para o seu Whats */}
-              <details className="text-xs text-neutral-500">
-                <summary className="cursor-pointer select-none">
-                  Ver mensagem que será enviada no WhatsApp
-                </summary>
-                <pre className="mt-2 whitespace-pre-wrap bg-neutral-50 p-3 rounded-xl border text-neutral-700">
-{mensagemWhats}
-                </pre>
-              </details>
+              <p className="text-xs text-neutral-500 mt-1">
+                Digite apenas DDD+Número (10 ou 11 dígitos). O +55 já está fixo.
+              </p>
             </div>
-          )}
+
+            {/* E-mail (obrigatório) */}
+            <div>
+              <label className="block text-sm font-medium text-neutral-700">
+                E-mail do cliente
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setShowQuote(false);
+                  setMsg(null);
+                }}
+                placeholder="voce@exemplo.com"
+                className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#004c56]"
+                required
+              />
+            </div>
+
+            {/* Botão principal */}
+            <button
+              type="submit"
+              className="w-full rounded-xl bg-[#004c56] text-white font-semibold py-3 hover:bg-[#00636f] transition"
+            >
+              Ver minha cotação
+            </button>
+
+            {msg && (
+              <div
+                className={`text-sm rounded-xl px-3 py-2 ${
+                  msg.startsWith("✅")
+                    ? "bg-green-50 text-green-700"
+                    : "bg-red-50 text-red-700"
+                }`}
+              >
+                {msg}
+              </div>
+            )}
+          </form>
+        </div>
+
+        {/* Cartão de cotação */}
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-neutral-800">
+                Sua cotação
+              </h2>
+              <span className="text-xs rounded-full bg-emerald-50 text-emerald-700 px-2 py-1">
+                estimativa
+              </span>
+            </div>
+
+            {/* Estado inicial */}
+            {!showQuote ? (
+              <div className="text-neutral-600">
+                Preencha o formulário ao lado e clique em{" "}
+                <strong>“Ver minha cotação”</strong>. Sua estimativa aparece
+                aqui.
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-xl bg-neutral-50 p-4">
+                    <div className="text-xs text-neutral-500">Companhia</div>
+                    <div className="font-semibold">{cia}</div>
+                  </div>
+                  <div className="rounded-xl bg-neutral-50 p-4">
+                    <div className="text-xs text-neutral-500">CPM</div>
+                    <div className="font-semibold">R$ {cpm}</div>
+                  </div>
+                  <div className="rounded-xl bg-neutral-50 p-4">
+                    <div className="text-xs text-neutral-500">Pontos</div>
+                    <div className="font-semibold">
+                      {pontosNum.toLocaleString("pt-BR")}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-neutral-50 p-4">
+                    <div className="text-xs text-neutral-500">
+                      Valor estimado
+                    </div>
+                    <div className="text-xl font-bold text-[#0f766e]">
+                      {brl(valor)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid sm:grid-cols-2 gap-3">
+                  <a
+                    href={waLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-center rounded-xl bg-[#25D366] text-white font-semibold py-3 hover:brightness-95 transition"
+                  >
+                    Continuar no WhatsApp
+                  </a>
+
+                  <button
+                    onClick={copyQuote}
+                    className="rounded-xl border border-neutral-300 bg-white text-neutral-800 font-semibold py-3 hover:bg-neutral-50 transition"
+                  >
+                    Copiar resumo da cotação
+                  </button>
+                </div>
+
+                <p className="text-xs text-neutral-500 mt-4">
+                  *Estimativa baseada no CPM informado. O valor final pode variar
+                  após validação.
+                </p>
+              </>
+            )}
+          </div>
         </div>
       </section>
 
