@@ -7,9 +7,6 @@ type CiaMap = Record<string, number>;
 const CONTINUE_URL =
   process.env.NEXT_PUBLIC_CONTINUE_URL || "https://abamilhas.com.br/continuar";
 
-// 🔁 SUBSTITUA A URL ABAIXO PELO SEU WEBHOOK DO MAKE
-const MAKE_WEBHOOK = "https://hook.us2.make.com/t3bv6ngxkg5kue1en9vdggss6hieksz3";
-
 function onlyDigits(s: string) {
   return s.replace(/[^\d]/g, "");
 }
@@ -91,9 +88,9 @@ export default function Page() {
       return;
     }
 
-    // 🔹 Envia os dados do lead para o Make (webhook)
+    // 🔹 Envia os dados do lead para a API interna (server) -> Make
     try {
-      await fetch(MAKE_WEBHOOK, {
+      await fetch("/api/lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -101,15 +98,12 @@ export default function Page() {
           pontos: pontosNum,
           whatsapp: onlyDigits(whatsLocal), // só dígitos (sem +55)
           email,
-          valorEstimado: valor,
+          valor, // já calculado
           cpm,
-          createdAt: new Date().toISOString(),
-          source: "site-abamilhas",
         }),
       });
-    } catch (err) {
+    } catch {
       // Falha no envio não impede o usuário de ver a cotação
-      console.error("Erro ao enviar lead para o Make:", err);
     }
 
     // 🔹 Abre o modal com a cotação
